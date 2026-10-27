@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tron Vulnerability Scanner</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; color: #e8e8f0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #fff; font-size: 2rem; margin-bottom: 10px; }
+        .header p { color: #8888a8; font-size: 0.95rem; }
+        
+        .controls { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .search-box { flex: 1; min-width: 250px; padding: 12px 16px; border-radius: 8px; border: 1px solid #2a2a45; background: #1a1a2e; color: #fff; font-size: 0.9rem; outline: none; }
+        .search-box:focus { border-color: #4a6fff; }
+        .scan-time { color: #6a6a90; font-size: 0.85rem; display: flex; align-items: center; }
+
+        .contract-card { background: #1a1a2e; border: 1px solid #2a2a45; border-radius: 12px; padding: 20px; margin-bottom: 15px; transition: transform 0.2s; }
+        .contract-card:hover { transform: translateY(-2px); border-color: #4a6fff; }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .contract-name { font-size: 1.2rem; font-weight: 600; color: #fff; }
+        .contract-address { font-family: 'Courier New', monospace; font-size: 0.85rem; color: #8888a8; word-break: break-all; margin-top: 4px; }
+        
+        .btn { padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; border: none; }
+        .btn-tronscan { background: #2a2a45; color: #e8e8f0; }
+        .btn-tronscan:hover { background: #3a3a5a; }
+
+        .vuln-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .tag { background: #2a0a0a; color: #f87171; border: 1px solid #4a1a1a; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .tag-abi { background: #2a1e0a; color: #fbbf24; border: 1px solid #4a3a1a; }
+
+        .empty-state { text-align: center; padding: 40px; color: #6a6a90; background: #1a1a2e; border-radius: 12px; border: 1px dashed #2a2a45; }
+        
+        .loader { text-align: center; padding: 40px; color: #4a6fff; font-weight: bold; }
+        .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(74, 111, 255, 0.3); border-radius: 50%; border-top-color: #4a6fff; animation: spin 1s ease-in-out infinite; margin-bottom: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Tron Vulnerability Scanner</h1>
+            <p>Live monitoring of exploitable contracts and known drainer patterns.</p>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="searchInput" class="search-box" placeholder="Search by contract address or name...">
+            <div class="scan-time" id="lastScanTime">Loading...</div>
+        </div>
+
+        <div id="resultsContainer">
+            <div class="loader">
+                <div class="spinner"></div>
+                <br>Fetching live scan data...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ REPLACE THIS URL WITH YOUR GITHUB RAW URL (Update YOUR_USERNAME and YOUR_REPO)
+        const GITHUB_RAW_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/flagged_contracts.json";
+
+        let allContracts = [];
+
+        async function fetchData() {
+            try {
+                // Add a cache-buster to ensure we get the latest data
+                const response = await fetch(`${GITHUB_RAW_URL}?t=${new Date().getTime()}`);
+                if (!response.ok) throw new Error("Could not fetch data");
+                
+                const data = await response.json();
+                allContracts = data.contracts || [];
+                
+                document.getElementById('lastScanTime').innerText = `Last scan: ${data.last_scan || 'Unknown'}`;
+                renderContracts(allContracts);
+
+            } catch (error) {
+                document.getElementById('resultsContainer').innerHTML = `
+                    <div class="empty-state" style="color: #f87171; border-color: #4a1a1a;">
+                        <p>Failed to load data from GitHub.</p>
+                        <p style="font-size: 0.8rem; margin-top: 10px;">Check that your URL is correct and the file exists.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderContracts(contracts) {
+            const container = document.getElementById('resultsContainer');
+            
+            if (contracts.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>✅ No Vulnerabilities Found</h3>
+                        <p style="margin-top: 10px; font-size: 0.9rem;">The bot has scanned recent contracts and found no immediate threats.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = contracts.map(c => {
+                const abiTags = (c.drainer_patterns || []).map(p => `<span class="tag tag-abi">Drainer: ${p}</span>`).join('');
+                const codeTags = (c.code_vulnerabilities || []).map(v => `<span class="tag">Vuln: ${v}</span>`).join('');
+
+                return `
+                    <div class="contract-card">
+                        <div class="card-header">
+                            <div>
+                                <div class="contract-name">${c.name || 'Unknown Contract'}</div>
+                                <div class="contract-address">${c.address}</div>
+                            </div>
+                            <a href="${c.tronscan_url || '#'}" target="_blank" class="btn btn-tronscan">View on Tronscan ↗</a>
+                        </div>
+                        <div class="vuln-tags">
+                            ${abiTags}
+                            ${codeTags}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = allContracts.filter(c => 
+                (c.address && c.address.toLowerCase().includes(term)) || 
+                (c.name && c.name.toLowerCase().includes(term))
+            );
+            renderContracts(filtered);
+        });
+
+        fetchData();
+    </script>
+</body>
+</html>
