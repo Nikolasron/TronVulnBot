@@ -60,19 +60,20 @@
     </div>
 
     <script>
-        // ⚠️ REPLACE THIS URL WITH YOUR GITHUB RAW URL (Update YOUR_USERNAME and YOUR_REPO)
-        const GITHUB_RAW_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/flagged_contracts.json";
+        // ✅ FIXED: Hardcoded your exact raw URL
+        const GITHUB_RAW_URL = "https://raw.githubusercontent.com/Nikolasron/TronVulnBot/main/flagged_contracts.json";
 
         let allContracts = [];
 
         async function fetchData() {
             try {
-                // Add a cache-buster to ensure we get the latest data
                 const response = await fetch(`${GITHUB_RAW_URL}?t=${new Date().getTime()}`);
                 if (!response.ok) throw new Error("Could not fetch data");
                 
                 const data = await response.json();
-                allContracts = data.contracts || [];
+                
+                // ✅ FIXED: The bot saves the array as "vulnerable_contracts"
+                allContracts = data.vulnerable_contracts || [];
                 
                 document.getElementById('lastScanTime').innerText = `Last scan: ${data.last_scan || 'Unknown'}`;
                 renderContracts(allContracts);
@@ -93,17 +94,16 @@
             if (contracts.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <h3>✅ No Vulnerabilities Found</h3>
-                        <p style="margin-top: 10px; font-size: 0.9rem;">The bot has scanned recent contracts and found no immediate threats.</p>
+                        <h3>✅ No Vulnerabilities Found Yet</h3>
+                        <p style="margin-top: 10px; font-size: 0.9rem;">The bot is running successfully. It will display contracts here as soon as it finds a threat.</p>
                     </div>
                 `;
                 return;
             }
 
             container.innerHTML = contracts.map(c => {
-                const abiTags = (c.drainer_patterns || []).map(p => `<span class="tag tag-abi">Drainer: ${p}</span>`).join('');
-                const codeTags = (c.code_vulnerabilities || []).map(v => `<span class="tag">Vuln: ${v}</span>`).join('');
-
+                const abiTags = (c.issues || []).map(p => `<span class="tag tag-abi">Issue: ${p}</span>`).join('');
+                
                 return `
                     <div class="contract-card">
                         <div class="card-header">
@@ -111,11 +111,10 @@
                                 <div class="contract-name">${c.name || 'Unknown Contract'}</div>
                                 <div class="contract-address">${c.address}</div>
                             </div>
-                            <a href="${c.tronscan_url || '#'}" target="_blank" class="btn btn-tronscan">View on Tronscan ↗</a>
+                            <a href="${c.url || '#'}" target="_blank" class="btn btn-tronscan">View on Tronscan ↗</a>
                         </div>
                         <div class="vuln-tags">
                             ${abiTags}
-                            ${codeTags}
                         </div>
                     </div>
                 `;
