@@ -21,7 +21,7 @@ VULNERABILITY_PATTERNS = {
 
 def get_recent_contracts():
     # Fetch newest verified contracts
-    url = "https://apilist.tronscanapi.com/api/contracts?verified-only=true&limit=10&sort=-timestamp"
+    url = "https://apilist.tronscanapi.com/api/contracts?verified-only=true&limit=50&sort=-timestamp"
     headers = {"TRON-PRO-API-KEY": TRONSCAN_API_KEY}
     try:
         res = requests.get(url, headers=headers, timeout=10)
